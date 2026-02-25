@@ -2,11 +2,11 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>WoT Ultimate HUD · Orange Stats</title>
+  <title>WoT Ultimate HUD · Strict Logic & Original Style</title>
   <style>
     :root {
       --accent: #00f2ff;
-      --save-color: #ffaa00; /* Помаранчевий */
+      --save-color: #ffaa00;
       --success-color: #00ff95;
       --fail-color: #ff3c3c;
       --card-bg: #121519;
@@ -28,7 +28,6 @@
       height: 100vh;
     }
 
-    /* --- ОНОВЛЕНА СТАТИСТИКА --- */
     .stats-bar {
       display: flex;
       gap: 15px;
@@ -45,24 +44,11 @@
       min-width: 130px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.7);
     }
-    
-    /* Фарбуємо "Всього боїв" у помаранчевий */
-    .stat-box.orange-style {
-      border-top: 3px solid var(--save-color);
-    }
-    .stat-box.orange-style .stat-value {
-      color: var(--save-color);
-    }
-
+    .stat-box.orange-style { border-top: 3px solid var(--save-color); }
+    .stat-box.orange-style .stat-value { color: var(--save-color); }
     .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
-    .stat-value {
-      font-family: 'Arial Black', sans-serif;
-      font-size: 28px;
-      font-weight: 900;
-      color: var(--accent);
-    }
+    .stat-value { font-family: 'Arial Black', sans-serif; font-size: 28px; font-weight: 900; color: var(--accent); }
 
-    /* Карусель (без змін) */
     .viewport {
       width: var(--view-width);
       height: 400px;
@@ -72,6 +58,7 @@
       justify-content: center;
       mask-image: linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%);
     }
+
     .card-row {
       display: flex;
       align-items: center;
@@ -80,6 +67,7 @@
       transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
       padding-left: calc(var(--view-width) / 2 - var(--card-width) / 2);
     }
+
     .card {
       width: var(--card-width);
       height: 280px;
@@ -97,10 +85,32 @@
       transform: scale(0.85);
       filter: grayscale(1);
       position: relative;
+      overflow: hidden;
     }
+
     .card.active { opacity: 1; transform: scale(1.1); border: 2px solid var(--accent); box-shadow: 0 0 50px rgba(0, 242, 255, 0.5); z-index: 50; filter: grayscale(0); }
     .card.is-save.active { border-color: var(--save-color); box-shadow: 0 0 50px rgba(255, 170, 0, 0.5); }
     .card.prev, .card.next { opacity: 0.5; transform: scale(0.95); filter: grayscale(0.5); z-index: 10; }
+
+    /* Печатка ВИКОНАНО */
+    .stamp {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg) scale(3);
+      border: 6px double var(--fail-color);
+      color: var(--fail-color);
+      padding: 5px 15px;
+      font-family: 'Arial Black', sans-serif;
+      font-size: 24px;
+      text-transform: uppercase;
+      opacity: 0;
+      background: rgba(0,0,0,0.4);
+      transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+      pointer-events: none;
+    }
+    .card.completed .stamp { opacity: 0.9; transform: translate(-50%, -50%) rotate(-25deg) scale(1); }
+
     .card-header { width: 100%; display: flex; justify-content: space-between; align-items: center; height: 25px; margin-bottom: 10px; }
     .save-label { font-size: 10px; font-weight: 900; color: var(--save-color); text-transform: uppercase; }
     .status-icon { font-size: 20px; }
@@ -111,6 +121,7 @@
     .card-footer { width: 100%; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
     .tier-label { font-size: 11px; color: #777; font-weight: 600; margin-bottom: 2px; }
     .tier-value { font-family: 'Arial Black', sans-serif; font-size: 24px; font-weight: 700; color: #fff; }
+    
     @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
     .active .status-icon { animation: pulse 1.5s infinite; }
   </style>
@@ -118,28 +129,20 @@
 <body>
 
 <div class="stats-bar">
-  <div class="stat-box orange-style">
-    <div class="stat-label">Всього боїв</div>
-    <div id="totalBattles" class="stat-value">0</div>
-  </div>
-  <div class="stat-box">
-    <div class="stat-label">Вінрейт (H)</div>
-    <div id="winRate" class="stat-value">0%</div>
-  </div>
+  <div class="stat-box orange-style"><div class="stat-label">Всього боїв</div><div id="totalBattles" class="stat-value">0</div></div>
+  <div class="stat-box"><div class="stat-label">Вінрейт</div><div id="winRate" class="stat-value">0%</div></div>
 </div>
 
-<div class="viewport">
-  <div class="card-row" id="cardRow"></div>
-</div>
+<div class="viewport"><div class="card-row" id="cardRow"></div></div>
 
 <script>
   (function() {
     const SHEET_ID = "17phnEn-NW-OnrZg4DcW65r-Xoq6ScsdVjS5yL0SS3fk";
     const STEPS = [
       {s:1, t:4, dmg:1000, save:false}, {s:2, t:5, dmg:1500, save:false},
-      {s:3, t:6, dmg:2000, save:false}, {s:4, t:7, dmg:2500, save:true },
-      {s:5, t:8, dmg:3000, save:false}, {s:6, t:9, dmg:3500, save:false},
-      {s:7, t:10, dmg:4500, save:true }, {s:8, t:10, dmg:5000, save:false},
+      {s:3, t:6, dmg:2000, save:false}, {s:4, t:7, dmg:2500, save:false},
+      {s:5, t:8, dmg:3000, save:true }, {s:6, t:9, dmg:3500, save:false},
+      {s:7, t:10, dmg:4500, save:false}, {s:8, t:10, dmg:5000, save:true },
       {s:9, t:11, dmg:5500, save:false}, {s:10, t:11, dmg:6000, save:false}
     ];
 
@@ -152,7 +155,9 @@
       STEPS.forEach((step, i) => {
         const card = document.createElement('div');
         card.className = `card ${step.save ? 'is-save' : ''}`;
+        card.id = `card-${i}`;
         card.innerHTML = `
+          <div class="stamp">Виконано</div>
           <div class="card-header">
             <div class="save-label">${step.save ? 'Безпечна межа' : ''}</div>
             <div class="status-icon" id="icon-${i}">${step.save ? '🛡️' : ''}</div>
@@ -171,28 +176,29 @@
       isInitialized = true;
     }
 
-    function updateCarousel(newIdx) {
+    function updateCarousel(idx, isFinished) {
       const row = document.getElementById('cardRow');
       const cards = document.querySelectorAll('.card');
       cards.forEach((card, i) => {
-        card.classList.remove('active', 'prev', 'next');
+        card.classList.remove('active', 'prev', 'next', 'completed');
         const icon = document.getElementById(`icon-${i}`);
-        if (i === newIdx) {
+        if (i === idx) {
           card.classList.add('active');
-          icon.innerHTML = '🎯';
-        } else if (i === newIdx - 1) {
+          if (isFinished && i === 9) card.classList.add('completed');
+          icon.innerHTML = (isFinished && i === 9) ? '👑' : '🎯';
+        } else if (i === idx - 1) {
           card.classList.add('prev');
           icon.innerHTML = '✔️';
-        } else if (i === newIdx + 1) {
+        } else if (i === idx + 1) {
           card.classList.add('next');
           icon.innerHTML = STEPS[i].save ? '🛡️' : '';
         } else {
-          icon.innerHTML = i < newIdx ? '✔️' : (STEPS[i].save ? '🛡️' : '');
+          icon.innerHTML = i < idx ? '✔️' : (STEPS[i].save ? '🛡️' : '');
         }
       });
-      const cardMoveWidth = 200 + (-40);
-      row.style.transform = `translateX(-${newIdx * cardMoveWidth}px)`;
-      currentIdx = newIdx;
+      const cardMoveWidth = 160; 
+      row.style.transform = `translateX(-${idx * cardMoveWidth}px)`;
+      currentIdx = idx;
     }
 
     async function fetchData() {
@@ -208,27 +214,31 @@
           isWin: r.c[7]?.v || 0
         })).filter(r => r.battleNo > 0).sort((a,b) => a.battleNo - b.battleNo);
 
-        let tempIdx = 0, tempSaveIdx = 0, totalWins = 0;
+        let tempIdx = 0, lastSaveIdx = 0, wins = 0, isFinished = false;
         data.forEach(r => {
-          if (r.isWin === 1) totalWins++;
-          if (r.tier >= STEPS[tempIdx].t) {
-            if (r.dmg >= STEPS[tempIdx].dmg) {
-              tempIdx = Math.min(tempIdx + 1, 9);
-              if (STEPS[tempIdx].save) tempSaveIdx = tempIdx;
-            } else {
-              tempIdx = Math.max(tempIdx - 1, tempSaveIdx);
+          if (r.isWin === 1) wins++;
+          let target = STEPS[tempIdx];
+          if (r.tier === target.t) { // СУВОРИЙ РІВЕНЬ
+            if (r.dmg >= target.dmg) {
+              if (tempIdx === 9) isFinished = true;
+              else {
+                tempIdx++;
+                if (STEPS[tempIdx].save) lastSaveIdx = tempIdx;
+              }
+            } else { // ВІДКАТ НА ОДНУ СХОДИНКУ (АЛЕ НЕ НИЖЧЕ СЕЙВУ)
+              tempIdx = Math.max(tempIdx - 1, lastSaveIdx);
             }
           }
         });
 
         document.getElementById('totalBattles').textContent = data.length;
-        const wr = data.length > 0 ? Math.round((totalWins / data.length) * 100) : 0;
+        const wr = data.length > 0 ? Math.round((wins / data.length) * 100) : 0;
         const wrEl = document.getElementById('winRate');
         wrEl.textContent = wr + '%';
         wrEl.style.color = wr >= 50 ? 'var(--success-color)' : 'var(--fail-color)';
 
         if (!isInitialized) initCards();
-        if (tempIdx !== currentIdx) updateCarousel(tempIdx);
+        updateCarousel(tempIdx, isFinished);
       } catch (e) { console.error(e); }
     }
 
